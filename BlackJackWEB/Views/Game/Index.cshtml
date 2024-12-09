@@ -1,0 +1,146 @@
+﻿@model BlackJackWEB.Models.Game
+
+@{
+    ViewData["Title"] = "Blackjack Game";
+}
+
+<h2>Blackjack Game</h2>
+
+<div>
+    <h3>Player's Balance: @Model.Player.Balance.ToString("C")</h3>
+    <h3>Current Bet: @Model.CurrentBet.ToString("C")</h3>
+</div>
+
+@if (Model.CurrentBet == 0)
+{
+    <form asp-action="StartGame" method="post">
+        <input type="number" name="betAmount" placeholder="Bet Amount" required min="1" max="@Model.Player.Balance" step="1" />
+        <button type="submit" class="btn btn-primary">Start New Game</button>
+    </form>
+}
+else
+{
+    <div class="game-area">
+        <div class="dealer-hand">
+            <h3>Dealer's Hand</h3>
+            <div class="cards">
+                @foreach (var card in Model.Dealer.Hand.GetCards())
+                {
+                    <div class="card">
+                        <span class="@(card.Suit == "Hearts" || card.Suit == "Diamonds" ? "text-danger" : "text-dark")">
+                            @card.Rank @GetSuitSymbol(card.Suit)
+                        </span>
+                    </div>
+                }
+            </div>
+            <h4>Hand Value: @Model.Dealer.HandValue</h4>
+        </div>
+
+        <div class="player-hand">
+            <h3>Player's Hand</h3>
+            <div class="cards">
+                @foreach (var card in Model.Player.Hands[Model.Player.CurrentHandIndex].GetCards())
+                {
+                    <div class="card">
+                        <span class="@(card.Suit == "Hearts" || card.Suit == "Diamonds" ? "text-danger" : "text-dark")">
+                            @card.Rank @GetSuitSymbol(card.Suit)
+                        </span>
+                    </div>
+                }
+            </div>
+            <h4>Hand Value: @Model.Player.Hands[Model.Player.CurrentHandIndex].HandValue</h4>
+        </div>
+
+        <div class="actions">
+            @if (Model.IsGameOver())
+            {
+                <h3>Game Over: @Model.GetWinner()</h3>
+                <form asp-action="PlayAgain" method="post" class="d-inline">
+                    <button type="submit" class="btn btn-primary">Play Again</button>
+                </form>
+            }
+            else
+            {
+                <form asp-action="PlayerHit" method="post" class="d-inline">
+                    <button type="submit" class="btn btn-success">Hit</button>
+                </form>
+
+                <form asp-action="PlayerStay" method="post" class="d-inline">
+                    <button type="submit" class="btn btn-warning">Stay</button>
+                </form>
+
+                @if (Model.Player.CanDoubleDown())
+                {
+                    <form asp-action="PlayerDoubleDown" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-info">Double Down</button>
+                    </form>
+                }
+
+                @if (Model.Player.CanSplit())
+                {
+                    <form asp-action="PlayerSplit" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-secondary">Split</button>
+                    </form>
+                }
+
+                @if (Model.Dealer.Hand.GetCards().Count > 0 && Model.Dealer.Hand.GetCards()[0].Value == 11)
+                {
+                    <form asp-action="PlaceInsuranceBet" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-dark">Insurance</button>
+                    </form>
+                }
+            }
+        </div>
+    </div>
+}
+
+@functions {
+    string GetSuitSymbol(string suit)
+    {
+        return suit switch
+        {
+            "Hearts" => "♥",
+            "Diamonds" => "♦",
+            "Clubs" => "♣",
+            "Spades" => "♠",
+            _ => suit
+        };
+    }
+}
+
+<style>
+    .game-area {
+        margin: 20px;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+    }
+
+    .cards {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin: 10px 0;
+    }
+
+    .card {
+        border: 1px solid #ccc;
+        padding: 10px;
+        border-radius: 4px;
+        min-width: 60px;
+        text-align: center;
+        background: white;
+    }
+
+    .actions {
+        margin-top: 20px;
+    }
+
+        .actions form {
+            margin-right: 10px;
+        }
+
+    .btn {
+        margin: 5px;
+    }
+</style>
