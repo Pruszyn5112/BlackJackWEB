@@ -1,4 +1,4 @@
-namespace BlackJackWEB.Models
+namespace BlackJackGUI.Models
 {
     public class ErrorViewModel
     {

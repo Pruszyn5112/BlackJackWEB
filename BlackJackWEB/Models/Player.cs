@@ -63,19 +63,22 @@ namespace BlackJackWEB.Models
             if (currentBet > Balance) return false;
 
             var cards = Hands[0].GetCards();
-            Hands.Clear();
-            Hands.Add(new Hand());
-            Hands.Add(new Hand());
-            Hands[0].AddCard(cards[0]);
-            Hands[1].AddCard(cards[1]);
 
+            // Create two new hands
+            var firstHand = new Hand();
+            firstHand.AddCard(cards[0]);
+
+            var secondHand = new Hand();
+            secondHand.AddCard(cards[1]);
+
+            // Clear and update hands list
+            Hands.Clear();
+            Hands.Add(firstHand);
+            Hands.Add(secondHand);
+
+            CurrentHandIndex = 0;
             PlaceBet(currentBet);
             return true;
-        }
-
-        public bool IsCurrentHandFinished()
-        {
-            return Hands[CurrentHandIndex].HandValue >= 21;
         }
 
         public bool MoveToNextHand()
@@ -86,6 +89,10 @@ namespace BlackJackWEB.Models
                 return true;
             }
             return false;
+        }
+        public bool IsCurrentHandFinished()
+        {
+            return Hands[CurrentHandIndex].HandValue >= 21;
         }
 
         public bool CanDoubleDown()

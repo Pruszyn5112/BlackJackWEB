@@ -7,103 +7,84 @@ namespace BlackJackWEB.Controllers
     {
         private static Game _game;
 
-        public GameController()
+        [HttpGet]
+        public IActionResult Index()
         {
             if (_game == null)
             {
-                _game = new Game(1000m);
+                _game = new Game(initialBalance: 1000);
             }
-        }
-
-        public IActionResult Index()
-        {
             return View(_game);
         }
 
         [HttpPost]
         public IActionResult StartGame(decimal betAmount)
         {
-            if (betAmount > 0 && betAmount <= _game.Player.Balance)
+            if (_game.Player.PlaceBet(betAmount))
             {
-                if (_game.IsGameOver())
-                {
-                    _game.UpdateBalance();
-                }
                 _game.StartGame(betAmount);
             }
-            return RedirectToAction("Index");
-        }
-
-        [HttpPost]
-        public IActionResult PlayerHit()
-        {
-            if (!_game.IsGameOver())
+            else
             {
-                _game.PlayerHit();
-                if (_game.IsGameOver())
-                {
-                    _game.ResolveGame();
-                    _game.UpdateBalance();
-                }
+                TempData["Error"] = "Insufficient balance to place the bet.";
             }
             return RedirectToAction("Index");
         }
 
         [HttpPost]
-        public IActionResult PlayerStay()
+        public IActionResult Hit()
         {
-            if (!_game.IsGameOver())
+            _game.PlayerHit();
+            if (_game.IsGameOver())
             {
-                _game.DealerTurn();
-                _game.ResolveGame();
-                _game.UpdateBalance();
+                TempData["Winner"] = _game.GetWinner();
             }
             return RedirectToAction("Index");
         }
-
         [HttpPost]
-        public IActionResult PlayerDoubleDown()
+        public IActionResult Stand()
         {
-            if (!_game.IsGameOver() && _game.Player.CanDoubleDown())
-            {
-                _game.DoubleDown();
-                _game.DealerTurn();
-                _game.ResolveGame();
-                _game.UpdateBalance();
-            }
-            return RedirectToAction("Index");
-        }
-
-        [HttpPost]
-        public IActionResult PlayerSplit()
-        {
-            if (!_game.IsGameOver() && _game.Player.CanSplit())
-            {
-                _game.SplitHand();
-            }
-            return RedirectToAction("Index");
-        }
-
-        [HttpPost]
-        public IActionResult PlayAgain()
-        {
+            _game.PlayerStand();
             if (_game.IsGameOver())
             {
                 _game.UpdateBalance();
-                _game.Player.ClearHands();
-                _game.Dealer.ClearHand();
-                // Reset current bet to 0 to show betting form
-                _game = new Game(_game.Player.Balance);
+                TempData["Winner"] = _game.GetWinner();
             }
             return RedirectToAction("Index");
         }
+
         [HttpPost]
-        public IActionResult PlaceInsuranceBet()
+        public IActionResult DoubleDown()
         {
-            if (!_game.IsGameOver() && _game.Dealer.Hand.GetCards()[0].Value == 11)
+            if (_game.Player.CanDoubleDown())
             {
-                _game.PlaceInsuranceBet();
+                _game.DoubleDown();
             }
+            else
+            {
+                TempData["Error"] = "Cannot double down.";
+            }
+            return RedirectToAction("Index");
+        }
+
+        [HttpPost]
+        public IActionResult Split()
+        {
+            if (_game.Player.CanSplit())
+            {
+                _game.SplitHand();
+            }
+            else
+            {
+                TempData["Error"] = "Cannot split hands.";
+            }
+            return RedirectToAction("Index");
+        }
+
+        [HttpPost]
+        public IActionResult Restart()
+        {
+            _game = new Game(initialBalance: _game.Player.Balance);
             return RedirectToAction("Index");
         }
     }

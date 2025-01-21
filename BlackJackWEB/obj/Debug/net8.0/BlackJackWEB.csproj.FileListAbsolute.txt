@@ -28,3 +28,4 @@ C:\Users\mateu\source\repos\BlackJackWEB\BlackJackWEB\obj\Debug\net8.0\refint\Bl
 C:\Users\mateu\source\repos\BlackJackWEB\BlackJackWEB\obj\Debug\net8.0\BlackJackWEB.pdb
 C:\Users\mateu\source\repos\BlackJackWEB\BlackJackWEB\obj\Debug\net8.0\BlackJackWEB.genruntimeconfig.cache
 C:\Users\mateu\source\repos\BlackJackWEB\BlackJackWEB\obj\Debug\net8.0\ref\BlackJackWEB.dll
+C:\Users\mateu\Source\Repos\BlackJackWEB\BlackJackWEB\obj\Debug\net8.0\BlackJackWEB.sourcelink.json

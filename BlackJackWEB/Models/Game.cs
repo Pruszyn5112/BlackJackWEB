@@ -1,19 +1,19 @@
-﻿using BlackJackWEB.Models;
-
-namespace BlackJackWEB.Models
+﻿namespace BlackJackWEB.Models
 {
-    internal class Game
+    public class Game
     {
         public Deck Deck { get; private set; }
         public Player Player { get; private set; }
         public Dealer Dealer { get; private set; }
         public decimal CurrentBet { get; private set; }
-
+        public bool IsInitialState { get; private set; }
+        public bool IsDealerTurn { get; private set; }
         public Game(decimal initialBalance)
         {
             Deck = new Deck();
             Player = new Player("Player", initialBalance);
             Dealer = new Dealer();
+            IsInitialState = true;
         }
 
         public void StartGame(decimal betAmount)
@@ -21,18 +21,38 @@ namespace BlackJackWEB.Models
             Player.ClearHands();
             Dealer.ClearHand();
             CurrentBet = betAmount;
-            Player.PlaceBet(betAmount);
-
-            // Deal two cards to player and dealer
+           // Player.PlaceBet(betAmount);
+            IsInitialState = false;
+            IsDealerTurn = false;
             Player.AddCard(Deck.DrawCard());
             Player.AddCard(Deck.DrawCard());
             Dealer.AddCard(Deck.DrawCard());
             Dealer.AddCard(Deck.DrawCard());
         }
-
         public void PlayerHit()
         {
-            Player.AddCard(Deck.DrawCard());
+            if (!IsGameOver())
+            {
+                Player.AddCard(Deck.DrawCard());
+                if (Player.HandValue > 21)
+                {
+                    if (!Player.MoveToNextHand())
+                    {
+                        DealerTurn();
+                        UpdateBalance();
+                    }
+                }
+            }
+        }
+        public void PlayerStand()
+        {
+            if (!Player.MoveToNextHand())
+            {
+                // If no more hands to play, complete dealer's turn
+                DealerTurn();
+                UpdateBalance();
+                IsDealerTurn = true; 
+            }
         }
 
         public void DealerTurn()
@@ -45,21 +65,40 @@ namespace BlackJackWEB.Models
 
         public bool IsGameOver()
         {
-            return Player.Hands.TrueForAll(hand => hand.HandValue > 21) || Dealer.HandValue > 21 || Player.Hands.Exists(hand => hand.HandValue == 21) || Dealer.HandValue == 21;
+            // Game is over only when all hands are completed
+            if (Player.CurrentHandIndex < Player.Hands.Count - 1)
+            {
+                return false; 
+            }
+
+
+            foreach (var hand in Player.Hands)
+            {
+                if (hand.HandValue <= 21)
+                {
+                    return false;  // Game isn't over if any player hand is still valid
+                }
+            }
+            return true;  // Game is over if all conditions above are false
         }
 
         public bool IsBlackjack()
         {
-            return Player.Hands.Exists(hand => hand.HandValue == 21);
+            return Player.Hands.Exists(hand =>
+                hand.HandValue == 21 && hand.GetCards().Count == 2);
         }
 
         public string GetWinner()
         {
-            if (Player.Hands.TrueForAll(hand => hand.HandValue > 21)) return "Dealer wins!";
-            if (Dealer.HandValue > 21) return "Player wins!";
-            if (Player.Hands.Exists(hand => hand.HandValue > Dealer.HandValue)) return "Player wins!";
-            if (Player.Hands.Exists(hand => hand.HandValue < Dealer.HandValue)) return "Dealer wins!";
-            return "It's a tie!";
+            if (Player.Hands.TrueForAll(hand => hand.HandValue > 21))
+                return "Dealer wins - Player busted!";
+            if (Dealer.HandValue > 21)
+                return "Player wins - Dealer busted!";
+            if (Player.Hands.Exists(hand => hand.HandValue > Dealer.HandValue))
+                return "Player wins!";
+            if (Player.Hands.Exists(hand => hand.HandValue < Dealer.HandValue))
+                return "Dealer wins!";
+            return "Push - It's a tie!";
         }
 
         public void UpdateBalance()
@@ -69,37 +108,46 @@ namespace BlackJackWEB.Models
                 decimal betAmount = CurrentBet;
                 if (Player.HasDoubledDown)
                 {
-                    betAmount *= 2; // Double the bet amount if the player has doubled down
+                    betAmount *= 2;
                 }
 
                 if (hand.HandValue > 21)
                 {
-                    // Player loses, no balance update needed
+                    // Player loses
+                    continue;
                 }
                 else if (Dealer.HandValue > 21 || hand.HandValue > Dealer.HandValue)
                 {
                     if (hand.HandValue == 21 && hand.GetCards().Count == 2)
                     {
-                        Player.WinBet(betAmount * 2.5m); // 3:2 payout for Blackjack
+                        Player.WinBet(betAmount * 2.5m); // Blackjack pays 3:2
                     }
                     else
                     {
-                        Player.WinBet(betAmount * 2); // 2:1 payout for regular win
+                        Player.WinBet(betAmount * 2); // Regular win pays 1:1
                     }
                 }
                 else if (hand.HandValue == Dealer.HandValue)
                 {
-                    Player.WinBet(betAmount);
+                    Player.WinBet(betAmount); // Push - return bet
                 }
             }
         }
-
         public void SplitHand()
         {
             if (Player.CanSplit())
             {
-                Player.SplitHand(CurrentBet);
-                Player.PlaceBet(CurrentBet);
+                if (Player.SplitHand(CurrentBet))
+                {
+                    // Deal one card to each split hand
+                    Player.CurrentHandIndex = 0;
+                    Player.AddCard(Deck.DrawCard());
+
+                    Player.CurrentHandIndex = 1;
+                    Player.AddCard(Deck.DrawCard());
+
+                    Player.CurrentHandIndex = 0; // Return to first hand
+                }
             }
         }
 
@@ -109,48 +157,15 @@ namespace BlackJackWEB.Models
             {
                 Player.DoubleDown(CurrentBet);
                 Player.AddCard(Deck.DrawCard());
-                if (!Player.MoveToNextHand())
-                {
-                    DealerTurn();
-                }
+                DealerTurn();
+                UpdateBalance();
             }
         }
 
-        private Card GetDealerFaceUpCard()
+        public Card GetDealerFaceUpCard()
         {
             var cards = Dealer.Hand.GetCards();
             return cards.Count > 0 ? cards[0] : null!;
-        }
-
-        public void PlaceInsuranceBet()
-        {
-            Card faceUpCard = GetDealerFaceUpCard();
-            if (faceUpCard != null && faceUpCard.Value == 11)
-            {
-                Player.PlaceInsuranceBet(CurrentBet);
-            }
-            else
-            {
-                throw new InvalidOperationException("Insurance bet can only be placed when dealer's face-up card is an ace.");
-            }
-        }
-
-        public void ResolveGame()
-        {
-            bool insuranceWon = Dealer.HandValue == 21;
-            CheckInsurance();
-        }
-
-        public void CheckInsurance()
-        {
-            if (Dealer.HandValue == 21)
-            {
-                Player.WinInsuranceBet();
-            }
-            else
-            {
-                Player.LoseInsuranceBet();
-            }
         }
     }
 }
